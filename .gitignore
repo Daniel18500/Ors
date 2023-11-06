@@ -31,3 +31,126 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+import pygame
+import random
+
+pygame.init()
+
+# Constants
+SCREEN_WIDTH, SCREEN_HEIGHT = 300, 600
+BLOCK_SIZE = 30
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+SHAPE_COLORS = [(0, 255, 255), (255, 0, 255), (255, 255, 0), (0, 255, 0), (255, 0, 0), (128, 0, 128), (0, 0, 255)]
+
+# Initialize screen
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption('Tetris')
+
+# Tetromino shapes
+SHAPES = [
+    [[1, 1, 1, 1]], 
+    [[1, 1], [1, 1]], 
+    [[1, 1, 0], [0, 1, 1]], 
+    [[0, 1, 1], [1, 1, 0]], 
+    [[1, 1, 1], [0, 1, 0]], 
+    [[1, 1, 1], [1, 0, 0]], 
+    [[1, 1, 1], [0, 0, 1]]
+]
+
+# Initialize variables
+board = [[0 for _ in range(SCREEN_WIDTH // BLOCK_SIZE)] for _ in range(SCREEN_HEIGHT // BLOCK_SIZE)]
+clock = pygame.time.Clock()
+game_over = False
+
+def draw_block(x, y, color):
+    pygame.draw.rect(screen, color, pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE), 0)
+    pygame.draw.rect(screen, WHITE, pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE), 1)
+
+def draw_board():
+    for y, row in enumerate(board):
+        for x, color in enumerate(row):
+            if color:
+                draw_block(x * BLOCK_SIZE, y * BLOCK_SIZE, SHAPE_COLORS[color - 1])
+
+def check_collision(shape, offset):
+    for y, row in enumerate(shape):
+        for x, value in enumerate(row):
+            if value and (x + offset[0] < 0 or x + offset[0] >= len(board[0]) or y + offset[1] >= len(board) or board[y + offset[1]][x + offset[0]]):
+                return True
+    return False
+
+def merge(shape, offset):
+    for y, row in enumerate(shape):
+        for x, value in enumerate(row):
+            if value:
+                board[y + offset[1]][x + offset[0]] = shape[y][x]
+
+def rotate(shape):
+    return [[shape[y][x] for y in range(len(shape))] for x in range(len(shape[0]) - 1, -1, -1)]
+
+def remove_full_lines():
+    lines_to_remove = [i for i, row in enumerate(board) if all(row)]
+    for idx in lines_to_remove:
+        del board[idx]
+        board.insert(0, [0 for _ in range(len(board[0]))])
+
+def game_over_screen():
+    font = pygame.font.Font(None, 36)
+    text = font.render('Game Over', True, WHITE)
+    screen.blit(text, ((SCREEN_WIDTH - text.get_width()) // 2, SCREEN_HEIGHT // 2))
+    pygame.display.flip()
+    pygame.time.wait(2000)
+    pygame.quit()
+    quit()
+
+def main():
+    current_shape = random.choice(SHAPES)
+    current_shape_color = random.randint(1, len(SHAPE_COLORS))
+    shape_position = [SCREEN_WIDTH // 2 // BLOCK_SIZE - len(current_shape[0]) // 2, 0]
+
+    while not game_over:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                game_over = True
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT and not check_collision(current_shape, [shape_position[0] - 1, shape_position[1]]):
+                    shape_position[0] -= 1
+                if event.key == pygame.K_RIGHT and not check_collision(current_shape, [shape_position[0] + 1, shape_position[1]]):
+                    shape_position[0] += 1
+                if event.key == pygame.K_DOWN and not check_collision(current_shape, [shape_position[0], shape_position[1] + 1]):
+                    shape_position[1] += 1
+                if event.key == pygame.K_UP:
+                    rotated_shape = rotate(current_shape)
+                    if not check_collision(rotated_shape, shape_position):
+                        current_shape = rotated_shape
+
+        if not check_collision(current_shape, [shape_position[0], shape_position[1] + 1]):
+            shape_position[1] += 1
+        else:
+            merge(current_shape, shape_position)
+            remove_full_lines()
+            current_shape = random.choice(SHAPES)
+            current_shape_color = random.randint(1, len(SHAPE_COLORS))
+            shape_position = [SCREEN_WIDTH // 2 // BLOCK_SIZE - len(current_shape[0]) // 2, 0]
+
+            if check_collision(current_shape, shape_position):
+                game_over_screen()
+
+        screen.fill(BLACK)
+        draw_board()
+        for y, row in enumerate(current_shape[0]):
+            for x, value in enumerate(row):
+                if value:
+                    draw_block((shape_position[0] + x) * BLOCK_SIZE, (shape_position[1] + y) * BLOCK_SIZE, SHAPE_COLORS[current_shape_color - 1])
+
+        pygame.display.flip()
+        clock.tick(10)
+
+    pygame.quit()
+    quit()
+
+if __name__ == '__main__':
+    main()
